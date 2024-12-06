@@ -41,59 +41,162 @@ public class Program
             {
                 // if (!AidItems.Contains(item)) continue;
                 
-                if (item.Keywords != null &&
-                    (item.Keywords.Contains(Fallout4.Keyword.ObjectTypeChem) ||
-                     item.Keywords.Contains(Fallout4.Keyword.ObjectTypeFood) ||
-                     item.Keywords.Contains(Fallout4.Keyword.ObjectTypeDrink) ||
-                     item.Keywords.Contains(Fallout4.Keyword.ObjectTypeNukaCola)))
+                if (item.Keywords != null && (item.Keywords.Contains(Fallout4.Keyword.ObjectTypeChem) ||
+                                              item.Keywords.Contains(Fallout4.Keyword.ObjectTypeFood) ||
+                                              item.Keywords.Contains(Fallout4.Keyword.ObjectTypeDrink) ||
+                                              item.Keywords.Contains(Fallout4.Keyword.ObjectTypeNukaCola)))
                 {
                     _allLootItems.Add(item.FormKey);
                 }
             }
 
             Console.WriteLine($"Removing loot from the world...");
+            
+            // var allCells = state.LoadOrder.PriorityOrder.Cell().WinningOverrides;
+            //
+            // foreach (var item in allCells.GetInvocationList())
+            // {
+            //     
+            // }
 
-            foreach (var placedObjectContext in state.LoadOrder.PriorityOrder.PlacedObject()
-                         .WinningContextOverrides(state.LinkCache))
+            foreach (var cellGetter in state.LoadOrder.PriorityOrder.Cell().WinningOverrides())
             {
-                // Skip any items not in our master list
-                if (!_allLootItems.Contains(placedObjectContext.Record.Base.FormKey)) continue;
-                
-                // Skip Persistent objects
-                if (Enums.HasFlag(placedObjectContext.Record.MajorRecordFlagsRaw,
-                        (int)PlacedObject.DefaultMajorFlag.Persistent))
-                    continue;
-
-                // Skip already disabled objects
-                if (Enums.HasFlag(placedObjectContext.Record.MajorRecordFlagsRaw,
-                        (int)PlacedObject.DefaultMajorFlag.InitiallyDisabled))
-                    continue;
-
-                // Roll a d100; if we roll higher than the Global Chance None (60) then DON'T remove the item
-                // (40% chance to keep the item in place)
-                if (_rng.Next(1, 100) >= Settings.GlobalLootChanceNone)
+                foreach (var placedGetter in cellGetter.Temporary)
                 {
-                    _itemsKept++;
-
-                    // It's already marked as No Respawn
+                    var placedItemLink = placedGetter.FormKey.ToLinkGetter<IPlacedObjectGetter>();
+                    if (!placedItemLink
+                            .TryResolveContext<IFallout4Mod, IFallout4ModGetter, IPlacedObject,
+                                IPlacedObjectGetter>(state.LinkCache, out var placedObjectContext)) continue;
+                    
+                    // Skip already disabled objects
                     if (Enums.HasFlag(placedObjectContext.Record.MajorRecordFlagsRaw,
-                            (int)PlacedObject.ItemMajorFlag.NoRespawn)) continue;
+                            (int)PlacedObject.DefaultMajorFlag.InitiallyDisabled))
+                        continue;
+                        
+                    // Skip any items not in our master list
+                    if (!_allLootItems.Contains(placedObjectContext.Record.Base.FormKey)) continue;
+                        
+                    // Roll a d100; if we roll higher than the Global Chance None (60) then DON'T remove the item
+                    // (40% chance to keep the item in place)
+                    if (_rng.Next(1, 100) >= Settings.GlobalLootChanceNone)
+                    {
+                        _itemsKept++;
+                            
+                        if (Enums.HasFlag(placedObjectContext.Record.MajorRecordFlagsRaw,
+                                (int)PlacedObject.ItemMajorFlag.NoRespawn)) continue;
+                        
+                        var noRespawnPlacedObject = placedObjectContext.GetOrAddAsOverride(state.PatchMod);
+                        noRespawnPlacedObject.MajorRecordFlagsRaw =
+                            Enums.SetFlag(noRespawnPlacedObject.MajorRecordFlagsRaw,
+                                (int)PlacedObject.ItemMajorFlag.NoRespawn, true);
 
-                    // Any items left don't respawn
-                    var norespawnPlacedObject = placedObjectContext.GetOrAddAsOverride(state.PatchMod);
-                    norespawnPlacedObject.MajorRecordFlagsRaw =
-                        Enums.SetFlag(norespawnPlacedObject.MajorRecordFlagsRaw,
-                            (int)PlacedObject.ItemMajorFlag.NoRespawn, true);
-
-                    continue;
+                        continue;
+                    }
+                        
+                    // Failed, so disable
+                    _itemsRemoved++;
+                    
+                    var disablePlacedObject = placedObjectContext.GetOrAddAsOverride(state.PatchMod);
+                    disablePlacedObject.MajorRecordFlagsRaw =
+                        Enums.SetFlag(disablePlacedObject.MajorRecordFlagsRaw,
+                            (int)PlacedObject.ItemMajorFlag.InitiallyDisabled, true);
                 }
-                
-                _itemsRemoved++;
-
-                var placedObjectSetter = placedObjectContext.GetOrAddAsOverride(state.PatchMod);
-                placedObjectSetter.MajorRecordFlagsRaw = Enums.SetFlag(placedObjectSetter.MajorRecordFlagsRaw,
-                    (int)PlacedObject.DefaultMajorFlag.InitiallyDisabled, true);
             }
+            
+            // foreach (var worldspaceGetter in state.LoadOrder.PriorityOrder.Worldspace()
+            //              .WinningOverrides())
+            // {
+            //     foreach (var worldspaceBlockGetter in worldspaceGetter.SubCells)
+            //     {
+            //         foreach (var worldspaceSubBlockGetter in worldspaceBlockGetter.Items)
+            //         {
+            //             foreach (var cellGetter in worldspaceSubBlockGetter.Items)
+            //             {
+            //                 foreach (var placedGetter in cellGetter.Temporary)
+            //                 {
+            //                     var placedItemLink = placedGetter.FormKey.ToLinkGetter<IPlacedObjectGetter>();
+            //                     if (placedItemLink
+            //                         .TryResolveContext<IFallout4Mod, IFallout4ModGetter, IPlacedObject,
+            //                             IPlacedObjectGetter>(state.LinkCache, out var placedObjectContext))
+            //                     {
+            //                         // Skip already disabled objects
+            //                         if (Enums.HasFlag(placedObjectContext.Record.MajorRecordFlagsRaw,
+            //                                 (int)PlacedObject.DefaultMajorFlag.InitiallyDisabled))
+            //                             continue;
+            //                         
+            //                         // Skip any items not in our master list
+            //                         if (!_allLootItems.Contains(placedObjectContext.Record.Base.FormKey)) continue;
+            //                         
+            //                         // Roll a d100; if we roll higher than the Global Chance None (60) then DON'T remove the item
+            //                         // (40% chance to keep the item in place)
+            //                         if (_rng.Next(1, 100) >= Settings.GlobalLootChanceNone)
+            //                         {
+            //                             _itemsKept++;
+            //                             
+            //                             if (Enums.HasFlag(placedObjectContext.Record.MajorRecordFlagsRaw,
+            //                                     (int)PlacedObject.ItemMajorFlag.NoRespawn)) continue;
+            //                         
+            //                             var noRespawnPlacedObject = placedObjectContext.GetOrAddAsOverride(state.PatchMod);
+            //                             noRespawnPlacedObject.MajorRecordFlagsRaw =
+            //                                 Enums.SetFlag(noRespawnPlacedObject.MajorRecordFlagsRaw,
+            //                                     (int)PlacedObject.ItemMajorFlag.NoRespawn, true);
+            //                         }
+            //                         
+            //                         // Failed, so disable
+            //                         _itemsRemoved++;
+            //                     
+            //                         var disablePlacedObject = placedObjectContext.GetOrAddAsOverride(state.PatchMod);
+            //                         disablePlacedObject.MajorRecordFlagsRaw =
+            //                             Enums.SetFlag(disablePlacedObject.MajorRecordFlagsRaw,
+            //                                 (int)PlacedObject.ItemMajorFlag.InitiallyDisabled, true);
+            //                     }
+            //                 }
+            //             }
+            //         }
+            //     }
+            // }
+
+            // foreach (var placedObjectContext in state.LoadOrder.PriorityOrder.PlacedObject()
+            //              .WinningContextOverrides(state.LinkCache))
+            // {
+            //     // Skip any items not in our master list
+            //     if (!_allLootItems.Contains(placedObjectContext.Record.Base.FormKey)) continue;
+            //     
+            //     // Skip Persistent objects
+            //     if (Enums.HasFlag(placedObjectContext.Record.MajorRecordFlagsRaw,
+            //             (int)PlacedObject.DefaultMajorFlag.Persistent))
+            //         continue;
+            //
+            //     // Skip already disabled objects
+            //     if (Enums.HasFlag(placedObjectContext.Record.MajorRecordFlagsRaw,
+            //             (int)PlacedObject.DefaultMajorFlag.InitiallyDisabled))
+            //         continue;
+            //
+            //     // Roll a d100; if we roll higher than the Global Chance None (60) then DON'T remove the item
+            //     // (40% chance to keep the item in place)
+            //     if (_rng.Next(1, 100) >= Settings.GlobalLootChanceNone)
+            //     {
+            //         _itemsKept++;
+            //
+            //         // It's already marked as No Respawn
+            //         if (Enums.HasFlag(placedObjectContext.Record.MajorRecordFlagsRaw,
+            //                 (int)PlacedObject.ItemMajorFlag.NoRespawn)) continue;
+            //
+            //         // Any items left don't respawn
+            //         var norespawnPlacedObject = placedObjectContext.GetOrAddAsOverride(state.PatchMod);
+            //         norespawnPlacedObject.MajorRecordFlagsRaw =
+            //             Enums.SetFlag(norespawnPlacedObject.MajorRecordFlagsRaw,
+            //                 (int)PlacedObject.ItemMajorFlag.NoRespawn, true);
+            //
+            //         continue;
+            //     }
+            //     
+            //     _itemsRemoved++;
+            //
+            //     var placedObjectSetter = placedObjectContext.GetOrAddAsOverride(state.PatchMod);
+            //     placedObjectSetter.MajorRecordFlagsRaw = Enums.SetFlag(placedObjectSetter.MajorRecordFlagsRaw,
+            //         (int)PlacedObject.DefaultMajorFlag.InitiallyDisabled, true);
+            // }
 
             // Summary of what happened
             Console.WriteLine(
