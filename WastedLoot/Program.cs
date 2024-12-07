@@ -102,5 +102,10 @@ public class Program
             Console.WriteLine($"Loot Items removed: {_itemsRemoved}");
             Console.WriteLine($"Loot Items kept: {_itemsKept}");
         }
+        
+        foreach (var rec in state.PatchMod.EnumerateMajorRecords())
+        {
+            rec.IsCompressed = false;
+        }
     }
 }
