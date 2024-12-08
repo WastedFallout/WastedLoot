@@ -15,6 +15,26 @@ public class Settings
     public bool PatchWorldLoot = true;
     
     [MaintainOrder]
+    [Tooltip("Remove placed misc items (junk).")]
+    public bool RemoveMiscItems = true;
+    
+    [MaintainOrder]
+    [Tooltip("Remove placed weapons.")]
+    public bool RemoveWeapons = true;
+    
+    [MaintainOrder]
+    [Tooltip("Remove placed ammo.")]
+    public bool RemoveAmmo = true;
+    
+    [MaintainOrder]
+    [Tooltip("Remove placed armor.")]
+    public bool RemoveArmor = true;
+    
+    [MaintainOrder]
+    [Tooltip("Remove placed Aid items, such as stimpaks, food, and chems.")]
+    public bool RemoveAid = true;
+    
+    [MaintainOrder]
     [Tooltip("Worldspaces to ignore when removing loot items.")]
     public List<IFormLinkGetter<IWorldspaceGetter>> WorldspacesToIgnore { get; set; } = [];
     
