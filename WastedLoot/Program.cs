@@ -56,6 +56,7 @@ public class Program
     ];
     
     private static HashSet<FormKey> _allLootItems = [];
+    private static HashSet<FormKey> _allDummyItems = [];
     private static readonly Random Rngesus = new(80085);
 
     private static int _itemsRemoved;
@@ -86,13 +87,24 @@ public class Program
                 foreach (var item in state.LoadOrder.PriorityOrder.OnlyEnabled().MiscItem().WinningOverrides())
                 {
                     // Filter which misc items HERE
-                    if (item.HasKeyword(Fallout4.Keyword.FeaturedItem) || item.HasKeyword(Fallout4.Keyword.NotJunkJetAmmo)) continue;
+                    if (item.HasKeyword(Fallout4.Keyword.FeaturedItem) || item.HasKeyword(Fallout4.Keyword.NotJunkJetAmmo)) 
+                        continue;
                     
-                    // Ignore "Dummy" items that are used to place LL items in the world.
-                    // Also traps and bones because... well.
-                    if (item.EditorID != null && (item.EditorID.StartsWith("Dummy") || 
-                                                  item.EditorID.StartsWith("TrapDummy") ||
-                                                  item.EditorID.StartsWith("Bones"))) continue;
+                    // TODO: skip any items in the lootItemsUnique [FLST:0017C668] formlist
+                    // Fallout4.FormList.lootItemsUnique
+                    
+                    // Ignore bones because environmental storytelling
+                    if (item.EditorID != null && item.EditorID.Contains("Bones", StringComparison.OrdinalIgnoreCase)) 
+                        continue;
+
+                    // Don't skip dummy items but add them to a separate list for future use
+                    if (item.EditorID != null && item.EditorID.Contains("Dummy", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _allDummyItems.Add(item.FormKey);
+                        // Important: Don't continue!!!
+                    }
+                    
+                    // Anything else to No Respawn but not delete? Add to _allDummyItems and it will be set
             
                     _allLootItems.Add(item.FormKey);
                 }
@@ -165,16 +177,12 @@ public class Program
                 // Skip any items not in our master list
                 if (!_allLootItems.Contains(placedObjectContext.Record.Base.FormKey)) continue;
                 
-                // TODO: no respawn EVERYTHING even persistent objects, Horizon does this so can't hurt...?
-                
-                // Skip Persistent objects
-                // if (Enums.HasFlag(placedObjectContext.Record.MajorRecordFlagsRaw,
-                //         (int)PlacedObject.DefaultMajorFlag.Persistent))
-                //     continue;
-                
                 // It's already marked as No Respawn
                 if (Enums.HasFlag(placedObjectContext.Record.MajorRecordFlagsRaw,
                         (int)PlacedObject.ItemMajorFlag.NoRespawn)) continue;
+                
+                if (placedObjectContext.Record.EncounterZone.FormKey.Equals(Fallout4.EncounterZone.NoResetZone.FormKey))
+                    continue;
 
                 // Skip already disabled objects
                 if (Enums.HasFlag(placedObjectContext.Record.MajorRecordFlagsRaw,
@@ -202,22 +210,6 @@ public class Program
                      (placedObjectContext.Record.VirtualMachineAdapter.Scripts.Count <= 1 &&
                       !placedObjectContext.Record.VirtualMachineAdapter.Scripts[0].Name.Equals("defaultdisablehavokonload"))))
                     continue;
-                
-                // if (placedObjectContext.Record.VirtualMachineAdapter is not null &&
-                //     placedObjectContext.Record.VirtualMachineAdapter.Scripts.Count <= 1 &&
-                //     !placedObjectContext.Record.VirtualMachineAdapter.Scripts[0].Name.Equals("defaultdisablehavokonload"))
-                //     continue;
-                
-                // {
-                //     foreach (var script in placedObjectContext.Record.VirtualMachineAdapter.Scripts)
-                //     {
-                //         if (script.Name.Equals("defaultdisablehavokonload")) continue;
-                //
-                //         Console.WriteLine("Object with script attached, skipping...");
-                //         _itemsIgnored++;
-                //     }
-                // }
-
 
                 if (placedObjectContext.TryGetParentContext<IWorldspace, IWorldspaceGetter>(
                         out var worldspaceContext) &&
@@ -242,8 +234,10 @@ public class Program
                 // Roll a d100; if we roll higher than the Global Chance None (60) then DON'T remove the item
                 // (40% chance to keep the item in place)
                 // OR if it's a presistent object, just mark it as No Respawn
+                // Also set all the Dummys that place LL items, mark as No Respawn
                 if (Rngesus.Next(1, 100) >= Settings.GlobalLootChanceNone ||
-                    Enums.HasFlag(placedObjectContext.Record.MajorRecordFlagsRaw, (int)PlacedObject.DefaultMajorFlag.Persistent))
+                    Enums.HasFlag(placedObjectContext.Record.MajorRecordFlagsRaw, (int)PlacedObject.DefaultMajorFlag.Persistent) ||
+                    _allDummyItems.Contains(placedObjectContext.Record.Base.FormKey))
                 {
                     _itemsKept++;
                     
@@ -252,11 +246,15 @@ public class Program
                     norespawnPlacedObject.MajorRecordFlagsRaw =
                         Enums.SetFlag(norespawnPlacedObject.MajorRecordFlagsRaw,
                             (int)PlacedObject.ItemMajorFlag.NoRespawn, true);
+                    
+                    // I don't think this is necessary? Vanilla does it though
+                    // norespawnPlacedObject.EncounterZone.SetTo(Fallout4.EncounterZone.NoResetZone);
 
                     continue;
                 }
                 
                 // Skip Persistent objects
+                // Instead we are just flagging all persistent objects as No Respawn above
                 // if (Enums.HasFlag(placedObjectContext.Record.MajorRecordFlagsRaw, (int)PlacedObject.DefaultMajorFlag.Persistent))
                 //     continue;
 
