@@ -8,7 +8,7 @@ public class Settings
 {
     [MaintainOrder]
     [Tooltip("The global chance that loot will NOT spawn in a container or in the world. In other words: higher number means less items.")]
-    public short GlobalLootChanceNone = 60;
+    public short GlobalLootChanceNone = 40;
     
     [MaintainOrder]
     [Tooltip("Remove placed items in the world based on the Global Loot Chance None. Quest and other important items are not removed.")]
@@ -20,15 +20,15 @@ public class Settings
     
     [MaintainOrder]
     [Tooltip("Remove placed weapons.")]
-    public bool RemoveWeapons = true;
+    public bool RemoveWeapons = false;
     
     [MaintainOrder]
     [Tooltip("Remove placed ammo.")]
-    public bool RemoveAmmo = true;
+    public bool RemoveAmmo = false;
     
     [MaintainOrder]
     [Tooltip("Remove placed armor.")]
-    public bool RemoveArmor = true;
+    public bool RemoveArmor = false;
     
     [MaintainOrder]
     [Tooltip("Remove placed Aid items, such as stimpaks, food, and chems.")]

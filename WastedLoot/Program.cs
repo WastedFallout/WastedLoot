@@ -156,14 +156,14 @@ public class Program
             {
                 foreach (var item in state.LoadOrder.PriorityOrder.Ingestible().WinningOverrides())
                 {
-                    if (item.HasKeyword(Fallout4.Keyword.FeaturedItem) || item.HasKeyword(Fallout4.Keyword.NotJunkJetAmmo)) continue;
+                    if (item.HasKeyword(Fallout4.Keyword.FeaturedItem) ||
+                        item.HasKeyword(Fallout4.Keyword.NotJunkJetAmmo)) continue;
                     
-                    if (!item.HasKeyword(Fallout4.Keyword.ObjectTypeChem) ||
-                        !item.HasKeyword(Fallout4.Keyword.ObjectTypeFood) ||
-                        !item.HasKeyword(Fallout4.Keyword.ObjectTypeDrink) ||
-                        !item.HasKeyword(Fallout4.Keyword.ObjectTypeNukaCola)) continue;
-
-                    // if (!AidItems.Contains(item)) continue;
+                    if (!item.HasKeyword(Fallout4.Keyword.ObjectTypeChem) &&
+                        !item.HasKeyword(Fallout4.Keyword.ObjectTypeFood) &&
+                        !item.HasKeyword(Fallout4.Keyword.ObjectTypeDrink) &&
+                        !item.HasKeyword(Fallout4.Keyword.ObjectTypeNukaCola) &&
+                        !AidItems.Contains(item)) continue;
 
                     _allLootItems.Add(item.FormKey);
                 }
@@ -192,7 +192,10 @@ public class Program
                 // Ignore items that have an owner (store decorations etc.)
                 if (placedObjectContext.Record.Ownership is not null)
                 {
+                    #if DEBUG
                     Console.WriteLine("Object with owner, skipping...");
+                    #endif
+                    
                     _itemsIgnored++;
                     continue;
                 }
@@ -200,7 +203,10 @@ public class Program
                 // Skip specific placed items by FormKey
                 if (PlacedItemsToIgnore.Contains(placedObjectContext.Record.Base.FormKey)) 
                 {
+                    #if DEBUG
                     Console.WriteLine("Object in Ignore list found, skipping...");
+                    #endif
+                    
                     _itemsIgnored++;
                     continue;
                 }
@@ -216,7 +222,10 @@ public class Program
                     Settings.WorldspacesToIgnore.Contains(
                         worldspaceContext.Record.FormKey.ToLink<IWorldspaceGetter>()))
                 {
+                    #if DEBUG
                     Console.WriteLine("Ignored Worldspace found, skipping...");
+                    #endif
+                    
                     _itemsIgnored++;
                     continue;
                 }
@@ -225,7 +234,10 @@ public class Program
                     (Settings.CellsToIgnore.Contains(cellContext.Record.FormKey.ToLink<ICellGetter>()) ||
                      CellsToIgnore.Contains(cellContext.Record.FormKey)))
                 {
+                    #if DEBUG
                     Console.WriteLine("Ignored Cell found, skipping...");
+                    #endif
+                    
                     _itemsIgnored++;
                     continue;
                 }
@@ -233,7 +245,7 @@ public class Program
                 // TODO: Separate percentage for each type of item? Would need to loop multiple times but might be worth
                 // Roll a d100; if we roll higher than the Global Chance None (60) then DON'T remove the item
                 // (40% chance to keep the item in place)
-                // OR if it's a presistent object, just mark it as No Respawn
+                // OR if it's a persistent object, just mark it as No Respawn
                 // Also set all the Dummys that place LL items, mark as No Respawn
                 if (Rngesus.Next(1, 100) >= Settings.GlobalLootChanceNone ||
                     Enums.HasFlag(placedObjectContext.Record.MajorRecordFlagsRaw, (int)PlacedObject.DefaultMajorFlag.Persistent) ||
@@ -263,7 +275,12 @@ public class Program
                 var placedObjectSetter = placedObjectContext.GetOrAddAsOverride(state.PatchMod);
                 placedObjectSetter.MajorRecordFlagsRaw = Enums.SetFlag(placedObjectSetter.MajorRecordFlagsRaw,
                     (int)PlacedObject.DefaultMajorFlag.InitiallyDisabled, true);
+                // placedObjectSetter.Position = new P3Float(placedObjectSetter.Position.X, placedObjectSetter.Position.Y, -30000);
             }
+
+            Console.WriteLine($"|------------------------|");
+            Console.WriteLine($"|         Summary         ");
+            Console.WriteLine($"|------------------------|");
 
             // Summary of what happened
             Console.WriteLine(
