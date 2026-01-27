@@ -1,0 +1,12 @@
+{
+  "Nickname": "WastedLoot",
+  "Visibility": "Visible",
+  "OneLineDescription": "Decimate loot placed in the world",
+  "LongDescription": "A Synthesis patcher to automatically remove placed loot in the world for a more challenging experience.",
+  "PreferredAutoVersioning": "Default",
+  "RequiredMods": [],
+  "TargetedReleases": [
+    "Fallout4",
+    "Fallout4VR"
+  ]
+}
