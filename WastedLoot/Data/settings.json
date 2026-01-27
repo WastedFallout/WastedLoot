@@ -1,0 +1,33 @@
+{
+  "GlobalLootChanceNone": 40,
+  "PatchWorldLoot": true,
+  "RemoveMiscItems": true,
+  "RemoveWeapons": false,
+  "RemoveAmmo": false,
+  "RemoveArmor": false,
+  "RemoveAid": true,
+  "WorldspacesToIgnore": [
+    "0A7FF4:Fallout4.esm",
+    "008B56:DLCNukaWorld.esm",
+    "000810:DLCCoast.esm",
+    "0014F4:DLCCoast.esm"
+  ],
+  "CellsToIgnore": [
+    "0CA260:Fallout4.esm",
+    "0016D8:Fallout4.esm",
+    "02CFA5:Fallout4.esm",
+    "000F31:DLCworkshop03.esm",
+    "02A199:Fallout4.esm",
+    "153794:Fallout4.esm",
+    "0B36AE:Fallout4.esm",
+    "153796:Fallout4.esm",
+    "19EEA8:Fallout4.esm",
+    "153797:Fallout4.esm",
+    "00E405:Fallout4.esm",
+    "00E425:Fallout4.esm",
+    "00E426:Fallout4.esm",
+    "17CA01:Fallout4.esm",
+    "0C0F68:Fallout4.esm",
+    "02D5EC:Fallout4.esm"
+  ]
+}
