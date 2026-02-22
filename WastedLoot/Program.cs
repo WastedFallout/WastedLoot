@@ -11,7 +11,7 @@ public class Program
 {
     private static Lazy<Settings> _settings = null!;
     private static Settings Settings => _settings.Value;
-    
+
     private static readonly HashSet<FormLink<IIngestibleGetter>> AidItems =
     [
         Fallout4.Ingestible.Stimpak,
@@ -44,25 +44,25 @@ public class Program
         Fallout4.Ingestible.HC_Herbal_Antimicrobial,
         Fallout4.Ingestible.HC_Herbal_Stimulant
     ];
-    
+
     private static readonly HashSet<FormKey> PlacedItemsToIgnore =
     [
         Fallout4.ModKey.MakeFormKey(0x0A2CC5) // Switchblade outside V111, for hunters
     ];
-    
+
     private static readonly HashSet<FormKey> CellsToIgnore =
     [
         Fallout4.ModKey.MakeFormKey(0x000FEC) // In Diamond City, where the trash pickup quest spawns items
     ];
-    
-    private static HashSet<FormKey> _allLootItems = [];
-    private static HashSet<FormKey> _allDummyItems = [];
+
+    private static readonly HashSet<FormKey> AllLootItems = [];
+    private static readonly HashSet<FormKey> AllDummyItems = [];
     private static readonly Random Rngesus = new(80085);
 
     private static int _itemsRemoved;
     private static int _itemsKept;
     private static int _itemsIgnored;
-    
+
     public static async Task<int> Main(string[] args)
     {
         return await SynthesisPipeline.Instance
@@ -80,33 +80,39 @@ public class Program
         if (Settings.PatchWorldLoot)
         {
             Console.WriteLine($"Populating list of loot items...");
-            
+
             // Filter MISC items
             if (Settings.RemoveMiscItems)
             {
                 foreach (var item in state.LoadOrder.PriorityOrder.OnlyEnabled().MiscItem().WinningOverrides())
                 {
                     // Filter which misc items HERE
-                    if (item.HasKeyword(Fallout4.Keyword.FeaturedItem) || item.HasKeyword(Fallout4.Keyword.NotJunkJetAmmo)) 
+                    if (item.HasKeyword(Fallout4.Keyword.FeaturedItem) || item.HasKeyword(Fallout4.Keyword.NotJunkJetAmmo))
                         continue;
-                    
-                    // TODO: skip any items in the lootItemsUnique [FLST:0017C668] formlist
-                    // Fallout4.FormList.lootItemsUnique
-                    
+
+                    // skip any items in the lootItemsUnique [FLST:0017C668] formlist
+                    if (Fallout4.FormList.lootItemsUnique.TryResolve(state.LinkCache, out var uniques))
+                    {
+                    	if (uniques.Items.Contains(item.FormKey))
+                        {
+                            continue;
+                        }
+                    }
+
                     // Ignore bones because environmental storytelling
-                    if (item.EditorID != null && item.EditorID.Contains("Bones", StringComparison.OrdinalIgnoreCase)) 
+                    if (item.EditorID != null && item.EditorID.Contains("Bones", StringComparison.OrdinalIgnoreCase))
                         continue;
 
                     // Don't skip dummy items but add them to a separate list for future use
                     if (item.EditorID != null && item.EditorID.Contains("Dummy", StringComparison.OrdinalIgnoreCase))
                     {
-                        _allDummyItems.Add(item.FormKey);
+                        AllDummyItems.Add(item.FormKey);
                         // Important: Don't continue!!!
                     }
-                    
+
                     // Anything else to No Respawn but not delete? Add to _allDummyItems and it will be set
-            
-                    _allLootItems.Add(item.FormKey);
+
+                    AllLootItems.Add(item.FormKey);
                 }
             }
 
@@ -120,10 +126,10 @@ public class Program
                         item.HasKeyword(Fallout4.Keyword.AnimsMine)) continue;
 
                     // There's only one placed in the Castle. I think it's worth keeping
-                    if (item.EditorID != null && 
+                    if (item.EditorID != null &&
                         item.EditorID.Contains("nukaGrenade", StringComparison.OrdinalIgnoreCase)) continue;
 
-                    _allLootItems.Add(item.FormKey);
+                    AllLootItems.Add(item.FormKey);
                 }
             }
 
@@ -135,7 +141,7 @@ public class Program
                     if (item.HasKeyword(Fallout4.Keyword.FeaturedItem) ||
                         item.HasKeyword(Fallout4.Keyword.NotJunkJetAmmo)) continue;
 
-                    _allLootItems.Add(item.FormKey);
+                    AllLootItems.Add(item.FormKey);
                 }
             }
 
@@ -147,7 +153,7 @@ public class Program
                     if (item.HasKeyword(Fallout4.Keyword.FeaturedItem) ||
                         item.HasKeyword(Fallout4.Keyword.NotJunkJetAmmo)) continue;
 
-                    _allLootItems.Add(item.FormKey);
+                    AllLootItems.Add(item.FormKey);
                 }
             }
 
@@ -158,14 +164,14 @@ public class Program
                 {
                     if (item.HasKeyword(Fallout4.Keyword.FeaturedItem) ||
                         item.HasKeyword(Fallout4.Keyword.NotJunkJetAmmo)) continue;
-                    
+
                     if (!item.HasKeyword(Fallout4.Keyword.ObjectTypeChem) &&
                         !item.HasKeyword(Fallout4.Keyword.ObjectTypeFood) &&
                         !item.HasKeyword(Fallout4.Keyword.ObjectTypeDrink) &&
                         !item.HasKeyword(Fallout4.Keyword.ObjectTypeNukaCola) &&
                         !AidItems.Contains(item)) continue;
 
-                    _allLootItems.Add(item.FormKey);
+                    AllLootItems.Add(item.FormKey);
                 }
             }
 
@@ -175,12 +181,12 @@ public class Program
                          .WinningContextOverrides(state.LinkCache))
             {
                 // Skip any items not in our master list
-                if (!_allLootItems.Contains(placedObjectContext.Record.Base.FormKey)) continue;
-                
+                if (!AllLootItems.Contains(placedObjectContext.Record.Base.FormKey)) continue;
+
                 // It's already marked as No Respawn
                 if (Enums.HasFlag(placedObjectContext.Record.MajorRecordFlagsRaw,
                         (int)PlacedObject.ItemMajorFlag.NoRespawn)) continue;
-                
+
                 if (placedObjectContext.Record.EncounterZone.FormKey.Equals(Fallout4.EncounterZone.NoResetZone.FormKey))
                     continue;
 
@@ -188,25 +194,25 @@ public class Program
                 if (Enums.HasFlag(placedObjectContext.Record.MajorRecordFlagsRaw,
                         (int)PlacedObject.DefaultMajorFlag.InitiallyDisabled))
                     continue;
-                
+
                 // Ignore items that have an owner (store decorations etc.)
                 if (placedObjectContext.Record.Ownership is not null)
                 {
                     #if DEBUG
                     Console.WriteLine("Object with owner, skipping...");
                     #endif
-                    
+
                     _itemsIgnored++;
                     continue;
                 }
-                
+
                 // Skip specific placed items by FormKey
-                if (PlacedItemsToIgnore.Contains(placedObjectContext.Record.Base.FormKey)) 
+                if (PlacedItemsToIgnore.Contains(placedObjectContext.Record.Base.FormKey))
                 {
                     #if DEBUG
                     Console.WriteLine("Object in Ignore list found, skipping...");
                     #endif
-                    
+
                     _itemsIgnored++;
                     continue;
                 }
@@ -225,7 +231,7 @@ public class Program
                     #if DEBUG
                     Console.WriteLine("Ignored Worldspace found, skipping...");
                     #endif
-                    
+
                     _itemsIgnored++;
                     continue;
                 }
@@ -237,34 +243,34 @@ public class Program
                     #if DEBUG
                     Console.WriteLine("Ignored Cell found, skipping...");
                     #endif
-                    
+
                     _itemsIgnored++;
                     continue;
                 }
 
-                // TODO: Separate percentage for each type of item? Would need to loop multiple times but might be worth
+                // Separate percentage for each type of item? Would need to loop multiple times but might be worth
                 // Roll a d100; if we roll higher than the Global Chance None (60) then DON'T remove the item
                 // (40% chance to keep the item in place)
                 // OR if it's a persistent object, just mark it as No Respawn
                 // Also set all the Dummys that place LL items, mark as No Respawn
                 if (Rngesus.Next(1, 100) >= Settings.GlobalLootChanceNone ||
                     Enums.HasFlag(placedObjectContext.Record.MajorRecordFlagsRaw, (int)PlacedObject.DefaultMajorFlag.Persistent) ||
-                    _allDummyItems.Contains(placedObjectContext.Record.Base.FormKey))
+                    AllDummyItems.Contains(placedObjectContext.Record.Base.FormKey))
                 {
                     _itemsKept++;
-                    
+
                     // Any items left don't respawn
                     var norespawnPlacedObject = placedObjectContext.GetOrAddAsOverride(state.PatchMod);
                     norespawnPlacedObject.MajorRecordFlagsRaw =
                         Enums.SetFlag(norespawnPlacedObject.MajorRecordFlagsRaw,
                             (int)PlacedObject.ItemMajorFlag.NoRespawn, true);
-                    
+
                     // I don't think this is necessary? Vanilla does it though
                     // norespawnPlacedObject.EncounterZone.SetTo(Fallout4.EncounterZone.NoResetZone);
 
                     continue;
                 }
-                
+
                 // Skip Persistent objects
                 // Instead we are just flagging all persistent objects as No Respawn above
                 // if (Enums.HasFlag(placedObjectContext.Record.MajorRecordFlagsRaw, (int)PlacedObject.DefaultMajorFlag.Persistent))
@@ -290,7 +296,7 @@ public class Program
             Console.WriteLine($"Loot Items kept: {_itemsKept}");
             Console.WriteLine($"Loot Items ignored: {_itemsIgnored}");
         }
-        
+
         foreach (var rec in state.PatchMod.EnumerateMajorRecords())
         {
             rec.IsCompressed = false;
